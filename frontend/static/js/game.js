@@ -37,6 +37,11 @@ async function apiFetch(endpoint, options = {}) {
         throw new Error(error.detail || 'An error occurred');
     }
     
+    // Handle 204 No Content responses
+    if (response.status === 204) {
+        return null;
+    }
+    
     return response.json();
 }
 
@@ -110,6 +115,13 @@ async function checkActiveGame() {
 
 async function startNewGame() {
     try {
+        // Delete current game if exists
+        try {
+            await apiFetch('/game/current', { method: 'DELETE' });
+        } catch (e) {
+            // Ignore if no game exists
+        }
+        
         currentGame = await apiFetch('/game/start', {
             method: 'POST',
             body: JSON.stringify({})
@@ -126,7 +138,7 @@ async function startNewGame() {
 async function continueGame() {
     showScreen('game-screen');
     initializeMap();
-    loadCurrentRound();
+    await loadCurrentRound();
 }
 
 async function loadCurrentRound() {
@@ -146,12 +158,49 @@ async function loadCurrentRound() {
         photoLoading.style.display = 'block';
         photoImg.style.display = 'none';
         
-        photoImg.onload = () => {
-            photoLoading.style.display = 'none';
-            photoImg.style.display = 'block';
-        };
+        console.log('Loading photo URL:', photo.photo_url);
         
-        photoImg.src = photo.photo_url;
+        // Load image with authentication
+        try {
+            const photoUrl = photo.photo_url.startsWith('http') ? photo.photo_url : API_BASE_URL + photo.photo_url;
+            const response = await fetch(photoUrl, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const blob = await response.blob();
+            const objectUrl = URL.createObjectURL(blob);
+            
+            photoImg.onload = () => {
+                console.log('Photo loaded successfully');
+                photoLoading.style.display = 'none';
+                photoImg.style.display = 'block';
+                // Clean up old object URL if exists
+                if (photoImg.dataset.objectUrl) {
+                    URL.revokeObjectURL(photoImg.dataset.objectUrl);
+                }
+                photoImg.dataset.objectUrl = objectUrl;
+            };
+            
+            photoImg.onerror = (error) => {
+                console.error('Photo loading failed:', error);
+                photoLoading.style.display = 'none';
+                photoImg.style.display = 'block';
+                photoImg.alt = 'Failed to load image';
+                URL.revokeObjectURL(objectUrl);
+            };
+            
+            photoImg.src = objectUrl;
+        } catch (error) {
+            console.error('Error fetching photo:', error);
+            photoLoading.style.display = 'none';
+            photoImg.alt = 'Failed to load image';
+        }
         
         // Reset guess
         currentGuess = null;
@@ -194,8 +243,6 @@ async function submitGuess() {
         // Show appropriate button
         if (result.game_completed) {
             document.getElementById('finish-game-btn').classList.remove('hidden');
-        } else {
-            document.getElementById('next-round-btn').classList.remove('hidden');
         }
         
         document.getElementById('submit-guess-btn').disabled = true;
@@ -212,6 +259,15 @@ function showResult(result) {
     // Update result info
     document.getElementById('result-distance').textContent = result.distance_km.toFixed(2);
     document.getElementById('result-score').textContent = result.score;
+    
+    // Add link to original photo if available
+    const immichLink = document.getElementById('result-immich-link');
+    if (result.immich_url) {
+        immichLink.href = result.immich_url;
+        immichLink.style.display = 'inline-block';
+    } else {
+        immichLink.style.display = 'none';
+    }
     
     // Initialize result map if not exists
     if (!resultMap) {
@@ -274,11 +330,12 @@ function showResult(result) {
 
 function closeResult() {
     document.getElementById('result-modal').classList.add('hidden');
+    // Load next round after closing result
+    loadCurrentRound();
 }
 
 async function nextRound() {
     closeResult();
-    loadCurrentRound();
 }
 
 async function showGameComplete() {
@@ -316,8 +373,14 @@ async function quitGame() {
     if (confirm('Are you sure you want to quit? Your progress will be lost.')) {
         try {
             await apiFetch('/game/current', { method: 'DELETE' });
+            currentGame = null;
+            currentGuess = null;
+            if (guessMarker) {
+                map.removeLayer(guessMarker);
+                guessMarker = null;
+            }
             showScreen('menu-screen');
-            checkActiveGame();
+            await checkActiveGame();
         } catch (error) {
             alert(`Error quitting game: ${error.message}`);
         }

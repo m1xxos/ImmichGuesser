@@ -290,6 +290,10 @@ header h1 {
     display: none;
 }
 
+#next-round-btn {
+    display: none !important;
+}
+
 .modal-content {
     background: white;
     border-radius: 20px;

@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from datetime import datetime
@@ -69,6 +70,7 @@ async def start_game(
             round_number=i,
             photo_id=photo["id"],
             photo_url=photo["thumbnailUrl"],
+            immich_url=photo.get("immichUrl"),
             actual_latitude=photo["latitude"],
             actual_longitude=photo["longitude"]
         )
@@ -131,7 +133,7 @@ async def get_current_photo(
         select(GameRound).where(
             GameRound.game_session_id == game.id,
             GameRound.completed_at == None
-        ).order_by(GameRound.round_number)
+        ).order_by(GameRound.round_number).limit(1)
     )
     current_round = result.scalar_one_or_none()
     
@@ -144,7 +146,7 @@ async def get_current_photo(
     # Return photo WITHOUT GPS coordinates
     return PhotoResponse(
         photo_id=current_round.photo_id,
-        photo_url=current_round.photo_url,
+        photo_url=f"/game/photo/{current_round.photo_id}/preview",
         round_number=current_round.round_number
     )
 
@@ -177,7 +179,7 @@ async def submit_guess(
         select(GameRound).where(
             GameRound.game_session_id == game.id,
             GameRound.completed_at == None
-        ).order_by(GameRound.round_number)
+        ).order_by(GameRound.round_number).limit(1)
     )
     current_round = result.scalar_one_or_none()
     
@@ -219,7 +221,8 @@ async def submit_guess(
         actual_latitude=current_round.actual_latitude,
         actual_longitude=current_round.actual_longitude,
         round_completed=True,
-        game_completed=game_completed
+        game_completed=game_completed,
+        immich_url=current_round.immich_url
     )
 
 
@@ -306,3 +309,22 @@ async def delete_current_game(
     await db.commit()
     
     return None
+
+
+@router.get("/photo/{asset_id}/{quality}")
+async def get_photo_proxy(
+    asset_id: str,
+    quality: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Proxy photo requests to Immich with API key."""
+    try:
+        if quality == "preview":
+            image_bytes = await immich_client.get_asset_preview(asset_id)
+        elif quality == "original":
+            image_bytes = await immich_client.get_asset_original(asset_id)
+        else:
+            image_bytes = await immich_client.get_asset_thumbnail(asset_id)
+        return Response(content=image_bytes, media_type="image/jpeg")
+    except HTTPException as e:
+        raise e

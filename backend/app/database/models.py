@@ -46,6 +46,7 @@ class GameRound(Base):
     # Photo information
     photo_id = Column(String(100), nullable=False)
     photo_url = Column(Text, nullable=False)
+    immich_url = Column(Text, nullable=True)  # Link to original photo in Immich
     actual_latitude = Column(Float, nullable=False)
     actual_longitude = Column(Float, nullable=False)
     

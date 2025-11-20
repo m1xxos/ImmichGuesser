@@ -6,7 +6,7 @@ from datetime import timedelta
 from ..database.session import get_db
 from ..database.models import User
 from ..models.user import UserCreate, UserLogin, UserResponse, Token
-from ..dependencies import get_password_hash, verify_password, create_access_token
+from ..dependencies import get_password_hash, verify_password, create_access_token, get_current_user
 from ..config import get_settings
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -77,7 +77,3 @@ async def login(user_data: UserLogin, db: AsyncSession = Depends(get_db)):
 async def get_current_user_info(current_user: User = Depends(get_current_user)):
     """Get current user information."""
     return current_user
-
-
-# Import at the end to avoid circular imports
-from ..dependencies import get_current_user

@@ -193,6 +193,7 @@ docker-compose restart frontend
 - `POST /api/game/start` - Начать новую игру
 - `GET /api/game/current` - Текущая игра
 - `GET /api/game/photo` - Получить фото для угадывания
+- `GET /api/game/photo/{asset_id}` - Прокси для изображений из Immich
 - `POST /api/game/guess` - Отправить догадку
 - `GET /api/game/rounds` - Список раундов
 - `GET /api/game/leaderboard` - Таблица лидеров

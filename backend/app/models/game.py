@@ -17,6 +17,7 @@ class GuessResponse(BaseModel):
     actual_longitude: float
     round_completed: bool
     game_completed: bool
+    immich_url: Optional[str] = None
 
 
 class PhotoResponse(BaseModel):
