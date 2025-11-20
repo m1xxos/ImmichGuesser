@@ -328,10 +328,21 @@ function showResult(result) {
     setTimeout(() => resultMap.invalidateSize(), 100);
 }
 
-function closeResult() {
+async function closeResult() {
     document.getElementById('result-modal').classList.add('hidden');
-    // Load next round after closing result
-    loadCurrentRound();
+    
+    // Check if game is completed
+    try {
+        currentGame = await apiFetch('/game/current');
+        if (currentGame.is_completed || currentGame.rounds_completed >= 5) {
+            showGameComplete();
+        } else {
+            loadCurrentRound();
+        }
+    } catch (error) {
+        // If no current game, go back to menu
+        showScreen('menu-screen');
+    }
 }
 
 async function nextRound() {

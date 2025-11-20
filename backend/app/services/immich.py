@@ -26,15 +26,18 @@ class ImmichClient:
         """
         async with httpx.AsyncClient(timeout=30.0) as client:
             try:
-                # Use search/metadata to get assets with location data
-                # Try to search for assets with coordinates
+                # Use random page to get different photos each time
+                import random
+                random_page = random.randint(1, 10)  # Random page between 1-10
+                
                 response = await client.post(
                     f"{self.api_url}/search/metadata",
                     headers=self.headers,
                     json={
                         "isNotInAlbum": False,
                         "withExif": True,
-                        "size": count * 20,  # Request many more to filter
+                        "size": 100,
+                        "page": random_page
                     }
                 )
                 response.raise_for_status()
