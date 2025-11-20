@@ -87,8 +87,9 @@ async def get_current_game(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get the current active game session."""
+    """Get the current game session (active or just completed)."""
     
+    # First try to get active game
     result = await db.execute(
         select(GameSession).where(
             GameSession.user_id == current_user.id,
@@ -96,6 +97,15 @@ async def get_current_game(
         )
     )
     game = result.scalar_one_or_none()
+    
+    # If no active game, try to get the most recently completed one
+    if not game:
+        result = await db.execute(
+            select(GameSession).where(
+                GameSession.user_id == current_user.id
+            ).order_by(desc(GameSession.completed_at)).limit(1)
+        )
+        game = result.scalar_one_or_none()
     
     if not game:
         raise HTTPException(
@@ -233,7 +243,7 @@ async def get_game_rounds(
 ):
     """Get all rounds for the current game."""
     
-    # Get current game
+    # Get current game (active or most recently completed)
     result = await db.execute(
         select(GameSession).where(
             GameSession.user_id == current_user.id,
@@ -241,6 +251,15 @@ async def get_game_rounds(
         )
     )
     game = result.scalar_one_or_none()
+    
+    # If no active game, get most recently completed
+    if not game:
+        result = await db.execute(
+            select(GameSession).where(
+                GameSession.user_id == current_user.id
+            ).order_by(desc(GameSession.completed_at)).limit(1)
+        )
+        game = result.scalar_one_or_none()
     
     if not game:
         raise HTTPException(

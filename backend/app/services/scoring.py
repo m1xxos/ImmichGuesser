@@ -37,11 +37,15 @@ def calculate_score(distance_km: float, max_points: int = 5000) -> int:
     """
     Calculate score based on distance from actual location.
     
-    Scoring system:
-    - Perfect guess (< 1km): max_points
-    - 1-10km: exponential decay
-    - 10-100km: linear decay
-    - > 100km: minimal points
+    Scoring system (more strict):
+    - Perfect guess (< 0.1km): max_points
+    - < 1km: 4000 points
+    - < 10km: 3000-2000 points
+    - < 50km: 2000-1000 points
+    - < 100km: 1000-500 points
+    - < 500km: 500-100 points
+    - < 1000km: 100-50 points
+    - > 1000km: 50-0 points
     
     Args:
         distance_km: Distance in kilometers
@@ -50,15 +54,24 @@ def calculate_score(distance_km: float, max_points: int = 5000) -> int:
     Returns:
         Score (0 to max_points)
     """
-    if distance_km < 0.001:  # Almost perfect
+    if distance_km < 0.1:  # < 100m - Perfect!
         return max_points
-    elif distance_km < 1:  # < 1km
-        return int(max_points * 0.95)
-    elif distance_km < 10:  # 1-10km
-        return int(max_points * (1 - (distance_km / 10) * 0.5))
-    elif distance_km < 100:  # 10-100km
-        return int(max_points * 0.5 * (1 - (distance_km - 10) / 90))
-    elif distance_km < 1000:  # 100-1000km
-        return int(max_points * 0.1 * (1 - (distance_km - 100) / 900))
-    else:  # > 1000km
-        return max(10, int(max_points * 0.01))
+    elif distance_km < 1:  # < 1km - Excellent
+        return 4000
+    elif distance_km < 10:  # < 10km - Very good
+        ratio = (distance_km - 1) / 9
+        return int(3000 - ratio * 1000)
+    elif distance_km < 50:  # < 50km - Good
+        ratio = (distance_km - 10) / 40
+        return int(2000 - ratio * 1000)
+    elif distance_km < 100:  # < 100km - Okay
+        ratio = (distance_km - 50) / 50
+        return int(1000 - ratio * 500)
+    elif distance_km < 500:  # < 500km - Not great
+        ratio = (distance_km - 100) / 400
+        return int(500 - ratio * 400)
+    elif distance_km < 1000:  # < 1000km - Poor
+        ratio = (distance_km - 500) / 500
+        return int(100 - ratio * 50)
+    else:  # > 1000km - Very poor
+        return max(0, int(50 * (1 - min(distance_km / 10000, 1))))

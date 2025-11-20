@@ -146,6 +146,12 @@ async function loadCurrentRound() {
         // Get current game state
         currentGame = await apiFetch('/game/current');
         
+        // Check if game is completed
+        if (currentGame.is_completed || currentGame.rounds_completed >= 5) {
+            showGameComplete();
+            return;
+        }
+        
         // Update UI
         document.getElementById('current-round').textContent = currentGame.rounds_completed + 1;
         document.getElementById('total-score').textContent = currentGame.total_score;
@@ -202,12 +208,20 @@ async function loadCurrentRound() {
             photoImg.alt = 'Failed to load image';
         }
         
-        // Reset guess
+        // Reset guess and clear all map layers (markers and lines)
         currentGuess = null;
         if (guessMarker) {
             map.removeLayer(guessMarker);
             guessMarker = null;
         }
+        
+        // Remove all lines and markers from previous rounds (but keep tile layer)
+        map.eachLayer(layer => {
+            if (layer instanceof L.Polyline || layer instanceof L.Marker || layer instanceof L.Circle) {
+                map.removeLayer(layer);
+            }
+        });
+        
         document.getElementById('submit-guess-btn').disabled = true;
         document.getElementById('next-round-btn').classList.add('hidden');
         document.getElementById('finish-game-btn').classList.add('hidden');
@@ -277,9 +291,9 @@ function showResult(result) {
         }).addTo(resultMap);
     }
     
-    // Clear previous markers
+    // Clear previous markers and lines
     resultMap.eachLayer(layer => {
-        if (layer instanceof L.Marker) {
+        if (layer instanceof L.Marker || layer instanceof L.Polyline) {
             resultMap.removeLayer(layer);
         }
     });
@@ -331,17 +345,22 @@ function showResult(result) {
 async function closeResult() {
     document.getElementById('result-modal').classList.add('hidden');
     
-    // Check if game is completed
+    // Just load current round, it will check if game is complete
     try {
-        currentGame = await apiFetch('/game/current');
-        if (currentGame.is_completed || currentGame.rounds_completed >= 5) {
-            showGameComplete();
-        } else {
-            loadCurrentRound();
-        }
+        await loadCurrentRound();
     } catch (error) {
-        // If no current game, go back to menu
-        showScreen('menu-screen');
+        // If error, might be completed or no game
+        console.log('Error loading round:', error);
+        try {
+            currentGame = await apiFetch('/game/current');
+            if (currentGame.is_completed || currentGame.rounds_completed >= 5) {
+                showGameComplete();
+            } else {
+                showScreen('menu-screen');
+            }
+        } catch (e) {
+            showScreen('menu-screen');
+        }
     }
 }
 
@@ -354,7 +373,8 @@ async function showGameComplete() {
         currentGame = await apiFetch('/game/current');
         const rounds = await apiFetch('/game/rounds');
         
-        showScreen('complete-screen');
+        // Show modal instead of changing screen
+        document.getElementById('complete-modal').classList.remove('hidden');
         
         document.getElementById('final-score-display').textContent = currentGame.total_score;
         
@@ -433,7 +453,8 @@ function initializeMap() {
         map.remove();
     }
     
-    map = L.map('map').setView([20, 0], 2);
+    // Saint Petersburg, Russia coordinates
+    map = L.map('map').setView([59.9311, 30.3609], 10);
     
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors',
@@ -502,14 +523,17 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('quit-game-btn').addEventListener('click', quitGame);
     document.getElementById('close-result-btn').addEventListener('click', closeResult);
     
-    // Complete screen buttons
-    document.getElementById('play-again-btn').addEventListener('click', startNewGame);
-    document.getElementById('view-leaderboard-btn').addEventListener('click', loadLeaderboard);
-    document.getElementById('back-to-menu-btn').addEventListener('click', () => {
-        showScreen('menu-screen');
-        checkActiveGame();
+    // Complete modal buttons
+    document.getElementById('play-again-btn').addEventListener('click', () => {
+        document.getElementById('complete-modal').classList.add('hidden');
+        startNewGame();
+    });
+    document.getElementById('view-leaderboard-btn').addEventListener('click', () => {
+        document.getElementById('complete-modal').classList.add('hidden');
+        loadLeaderboard();
     });
     document.getElementById('back-to-menu-btn-2').addEventListener('click', () => {
+        document.getElementById('complete-modal').classList.add('hidden');
         showScreen('menu-screen');
         checkActiveGame();
     });
