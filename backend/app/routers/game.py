@@ -30,14 +30,14 @@ async def start_game(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Start a new game session."""
+    """Start a new game session with optional date range filter."""
     
     # Check if user has an incomplete game
     result = await db.execute(
         select(GameSession).where(
             GameSession.user_id == current_user.id,
             GameSession.is_completed == False
-        )
+        ).order_by(desc(GameSession.started_at)).limit(1)
     )
     existing_game = result.scalar_one_or_none()
     
@@ -47,9 +47,13 @@ async def start_game(
             detail="You already have an active game. Complete it or delete it first."
         )
     
-    # Fetch random photos with GPS from Immich
+    # Fetch random photos with GPS from Immich (with date filters)
     try:
-        photos = await immich_client.get_random_photos_with_gps(settings.ROUNDS_PER_GAME)
+        photos = await immich_client.get_random_photos_with_gps(
+            count=settings.ROUNDS_PER_GAME,
+            start_date=game_data.start_date,
+            end_date=game_data.end_date
+        )
     except HTTPException as e:
         raise e
     
@@ -58,7 +62,9 @@ async def start_game(
         user_id=current_user.id,
         total_score=0,
         rounds_completed=0,
-        is_completed=False
+        is_completed=False,
+        start_date=game_data.start_date,
+        end_date=game_data.end_date
     )
     db.add(new_game)
     await db.flush()
@@ -94,7 +100,7 @@ async def get_current_game(
         select(GameSession).where(
             GameSession.user_id == current_user.id,
             GameSession.is_completed == False
-        )
+        ).order_by(desc(GameSession.started_at)).limit(1)
     )
     game = result.scalar_one_or_none()
     
@@ -128,7 +134,7 @@ async def get_current_photo(
         select(GameSession).where(
             GameSession.user_id == current_user.id,
             GameSession.is_completed == False
-        )
+        ).order_by(desc(GameSession.started_at)).limit(1)
     )
     game = result.scalar_one_or_none()
     
@@ -174,7 +180,7 @@ async def submit_guess(
         select(GameSession).where(
             GameSession.user_id == current_user.id,
             GameSession.is_completed == False
-        )
+        ).order_by(desc(GameSession.started_at)).limit(1)
     )
     game = result.scalar_one_or_none()
     
@@ -248,7 +254,7 @@ async def get_game_rounds(
         select(GameSession).where(
             GameSession.user_id == current_user.id,
             GameSession.is_completed == False
-        )
+        ).order_by(desc(GameSession.started_at)).limit(1)
     )
     game = result.scalar_one_or_none()
     
@@ -314,7 +320,7 @@ async def delete_current_game(
         select(GameSession).where(
             GameSession.user_id == current_user.id,
             GameSession.is_completed == False
-        )
+        ).order_by(desc(GameSession.started_at)).limit(1)
     )
     game = result.scalar_one_or_none()
     

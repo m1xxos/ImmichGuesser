@@ -68,6 +68,32 @@
         </div>
     </div>
 
+    <!-- Date Range Selection Modal -->
+    <div id="date-range-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2>📅 Select Date Range (Optional)</h2>
+            <p>Choose a date range for photos, or leave empty to use all photos.</p>
+            
+            <div class="date-inputs">
+                <div class="date-input-group">
+                    <label for="start-date">Start Date:</label>
+                    <input type="date" id="start-date" placeholder="Leave empty for no limit">
+                </div>
+                
+                <div class="date-input-group">
+                    <label for="end-date">End Date:</label>
+                    <input type="date" id="end-date" placeholder="Leave empty for no limit">
+                </div>
+            </div>
+            
+            <div class="modal-buttons">
+                <button id="confirm-dates-btn" class="btn btn-primary">Start Game</button>
+                <button id="cancel-dates-btn" class="btn btn-secondary">Cancel</button>
+            </div>
+            <div id="date-error" class="error-message"></div>
+        </div>
+    </div>
+
     <!-- Game Screen -->
     <div id="game-screen" class="screen hidden">
         <div class="game-header">

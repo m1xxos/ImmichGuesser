@@ -1,5 +1,5 @@
-from datetime import datetime
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boolean, Text
+from datetime import datetime, date
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boolean, Text, Date
 from sqlalchemy.orm import relationship
 from .session import Base
 
@@ -29,6 +29,8 @@ class GameSession(Base):
     started_at = Column(DateTime, default=datetime.utcnow)
     completed_at = Column(DateTime, nullable=True)
     is_completed = Column(Boolean, default=False)
+    start_date = Column(Date, nullable=True)  # Filter: photos taken after this date
+    end_date = Column(Date, nullable=True)    # Filter: photos taken before this date
     
     # Relationships
     user = relationship("User", back_populates="game_sessions")

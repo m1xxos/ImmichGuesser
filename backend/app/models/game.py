@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, date
 
 
 class GuessRequest(BaseModel):
@@ -29,7 +29,8 @@ class PhotoResponse(BaseModel):
 
 class GameSessionCreate(BaseModel):
     """Request to create a new game session."""
-    pass
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
 
 
 class GameSessionResponse(BaseModel):
@@ -40,6 +41,8 @@ class GameSessionResponse(BaseModel):
     is_completed: bool
     started_at: datetime
     completed_at: Optional[datetime] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
     
     class Config:
         from_attributes = True

@@ -113,8 +113,29 @@ async function checkActiveGame() {
     }
 }
 
-async function startNewGame() {
+function openDateRangeModal() {
+    document.getElementById('date-range-modal').classList.remove('hidden');
+    document.getElementById('date-error').textContent = '';
+    // Clear previous values
+    document.getElementById('start-date').value = '';
+    document.getElementById('end-date').value = '';
+}
+
+function closeDateRangeModal() {
+    document.getElementById('date-range-modal').classList.add('hidden');
+}
+
+async function startNewGameWithDates() {
     try {
+        const startDate = document.getElementById('start-date').value;
+        const endDate = document.getElementById('end-date').value;
+        
+        // Validate dates
+        if (startDate && endDate && startDate > endDate) {
+            document.getElementById('date-error').textContent = 'Start date must be before end date';
+            return;
+        }
+        
         // Delete current game if exists
         try {
             await apiFetch('/game/current', { method: 'DELETE' });
@@ -122,17 +143,28 @@ async function startNewGame() {
             // Ignore if no game exists
         }
         
+        // Build request body
+        const requestBody = {};
+        if (startDate) requestBody.start_date = startDate;
+        if (endDate) requestBody.end_date = endDate;
+        
         currentGame = await apiFetch('/game/start', {
             method: 'POST',
-            body: JSON.stringify({})
+            body: JSON.stringify(requestBody)
         });
         
+        closeDateRangeModal();
         showScreen('game-screen');
         initializeMap();
         loadCurrentRound();
     } catch (error) {
-        alert(`Error starting game: ${error.message}`);
+        document.getElementById('date-error').textContent = error.message;
     }
+}
+
+async function startNewGame() {
+    // Open date range selection modal instead of starting directly
+    openDateRangeModal();
 }
 
 async function continueGame() {
@@ -515,6 +547,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('continue-game-btn').addEventListener('click', continueGame);
     document.getElementById('leaderboard-btn').addEventListener('click', loadLeaderboard);
     document.getElementById('logout-btn').addEventListener('click', logout);
+    
+    // Date range modal buttons
+    document.getElementById('confirm-dates-btn').addEventListener('click', startNewGameWithDates);
+    document.getElementById('cancel-dates-btn').addEventListener('click', closeDateRangeModal);
     
     // Game buttons
     document.getElementById('submit-guess-btn').addEventListener('click', submitGuess);
